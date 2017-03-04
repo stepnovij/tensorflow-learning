@@ -32,6 +32,7 @@ TRAIN_LABEL_PREFIX = 'train-labels'
 TRAIN_DATA_PREFIX = 'train-images'
 TEST_LABEL_PREFIX = 't10k-labels'
 TEST_DATA_PREFIX = 't10k-images'
+NUM_LABELS = 10
 
 DataLabel = namedtuple('DataLabel', ['label', 'data'], verbose=True)
 
