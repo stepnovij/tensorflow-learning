@@ -43,7 +43,9 @@ def logistic_regression_different_batches(learning_rate, num_steps, train_subset
         weights = tf.Variable(tf.truncated_normal([IMAGE_XSIZE*IMAGE_YSIZE, NUM_LABELS]))
         biases = tf.Variable(tf.zeros([NUM_LABELS]))
 
+        # Ligistic regression model:
         logits = tf.matmul(tf_train_data, weights) + biases
+
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                       labels=tf_train_labels))
 
