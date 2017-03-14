@@ -16,9 +16,9 @@ def construct_tf_constant(dataset, labels):
     return tf_train_data, tf_train_labels
 
 
-def construct_tf_placeholder():
-    tf_train_data = tf.placeholder("float", shape=[None, IMAGE_XSIZE*IMAGE_YSIZE])
-    tf_train_labels = tf.placeholder("float", shape=[None, NUM_LABELS])
+def construct_tf_placeholder(batch_size):
+    tf_train_data = tf.placeholder(tf.float32, shape=(None, IMAGE_XSIZE*IMAGE_YSIZE))
+    tf_train_labels = tf.placeholder(tf.int32, shape=(None, NUM_LABELS))
     return tf_train_data, tf_train_labels
 
 
@@ -36,24 +36,55 @@ biases = {
 }
 
 
-def one_layer_perceptron(x, weights, biases):
+def inference(x):
     # Hidden layer with RELU activation
     logits = tf.matmul(x, weights['h1']) + biases['b1']
     relu = tf.nn.relu(logits)
     # Output layer with linear activation
     out_layer = tf.matmul(relu, weights['out']) + biases['out']
-    return out_layer
+    return out_layer #tf.nn.softmax()
+
+
+def loss_func(logits, probabilities):
+    # sparse_softmax_cross_entropy_with_logits - used when you have labels
+    # softmax_cross_entropy_with_logits - used when you have probabilities
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=probabilities, logits=logits)
+    return tf.reduce_mean(cross_entropy)
+
+
+def training(loss, learning_rate):
+    tf.scalar_summary('loss', loss)
+    global_step = tf.Variable(0, name='global_step', trainable=False)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    training_op = optimizer.minimize(loss, global_step=global_step)
+    return training_op
+
+
+def evaluate(output, y):
+    correct_prediction = tf.equal(tf.argmax(output, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    return accuracy
+
+
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+      mean = tf.reduce_mean(var)
+      tf.summary.scalar('mean', mean)
+      with tf.name_scope('stddev'):
+        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+      tf.summary.scalar('stddev', stddev)
+      tf.summary.scalar('max', tf.reduce_max(var))
+      tf.summary.scalar('min', tf.reduce_min(var))
+      tf.summary.histogram('histogram', var)
 
 
 def one_layer_relu(learning_rate, num_steps, train_subset):
-    # graph = tf.Graph()
-    # with graph.as_default():
+    # Load dataset:
+    test_dataset, train_dataset, validation_dataset = load_test_train_validation_ds()
 
     # Variables
-    tf_train_data, tf_train_labels = construct_tf_placeholder()
-
-    # Construct architecture and get logits:
-    logits = one_layer_perceptron(tf_train_data, weights, biases)
+    tf_train_data, tf_train_labels = construct_tf_placeholder(train_subset)
 
     train_labels = convert_from_one_dim_labels(train_dataset.label, NUM_LABELS)
 
@@ -62,20 +93,28 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
                                                            validation_dataset.label)
     valid_labels = convert_from_one_dim_labels(validation_dataset.label, NUM_LABELS)
 
-    # Constants training set
+    # Constant test set
     tf_test_data, tf_test_label = construct_tf_constant(test_dataset.data, test_dataset.label)
     test_labels = convert_from_one_dim_labels(test_dataset.label, NUM_LABELS)
 
+    # Construct architecture and get predictions:
+    logits = inference(tf_train_data)
 
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
-                                                                  labels=tf_train_labels))
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
-    train_prediction = tf.nn.softmax(logits)
+    # Get loss:
+    loss = loss_func(logits, tf_train_labels)
 
-    # valid_prediction = tf.nn.softmax(one_layer_perceptron(tf_valid_data, weights, biases))
-    # test_prediction = tf.nn.softmax(one_layer_perceptron(tf_test_data, weights, biases))
+    training_op = training(loss, learning_rate)
+    eval_op = evaluate(logits, tf_train_labels)
+
+    # Predictions:
+    test_prediction = inference(tf_test_data)
+
+    summary_op = tf.merge_all_summaries()
+    saver = tf.train.Saver()
 
     with tf.Session() as session:
+        summary_writer = tf.train.SummaryWriter('logs/',
+                                                graph_def=session.graph_def)
         tf.global_variables_initializer().run()
         logging.info('Initialization')
         for step in range(num_steps):
@@ -85,19 +124,25 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
             batch_labels = train_labels[random_indx]
 
             feed_dict = {tf_train_data: batch_data, tf_train_labels: batch_labels}
-            _, l, predictions = session.run([optimizer, loss, train_prediction],
-                                            feed_dict=feed_dict)
+            _, loss_value = session.run([training_op, loss], feed_dict=feed_dict)
 
             if step % 500 == 0:
-                logging.info('Loss at step %d: %f' % (step, l))
-                logging.info('Training accuracy: %.1f%%' % accuracy(predictions, batch_labels))
-        #         logging.info('Validation accuracy: %.1f%%' % accuracy(
-        #             valid_prediction.eval(), valid_labels))
-        # logging.info('Test accuracy: %.1f%%' % accuracy(test_prediction.eval(), test_labels))
+
+                logging.info('Loss at step %d: %f' % (step, loss_value))
+                val_feed_dict = {
+                    tf_train_data: validation_dataset.data,
+                    tf_train_labels: valid_labels
+                }
+                simple_accuracy = session.run(eval_op, feed_dict=val_feed_dict)
+
+                summary_str = session.run(summary_op, feed_dict=feed_dict)
+                summary_writer.add_summary(summary_str, step)
+                saver.save(session, 'logs/model-checkpoint', global_step=step)
+
+        logging.info('Test accuracy: %.1f%%' % accuracy(test_prediction.eval(), test_labels))
 
 
 if __name__ == '__main__':
-    test_dataset, train_dataset, validation_dataset = load_test_train_validation_ds()
     train_subset = 200
     learning_rate = 0.001
     num_steps = 3001
