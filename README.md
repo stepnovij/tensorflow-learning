@@ -8,4 +8,4 @@ Simple educational repo to evaluate tensorflow library.
 * logistic regression with dynamic training batches
 * nn one-hidden relu
 
-Implementing parts of official [ tensowflow's examples] (https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/mnist/mnist_with_summaries.py)
+Implementing parts of official [tensowflow's examples](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/mnist/mnist_with_summaries.py)
