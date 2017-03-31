@@ -113,8 +113,7 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
     saver = tf.train.Saver()
 
     with tf.Session() as session:
-        summary_writer = tf.train.SummaryWriter('logs/',
-                                                graph_def=session.graph_def)
+        summary_writer = tf.train.SummaryWriter('logs/', graph_def=session.graph_def)
         tf.global_variables_initializer().run()
         logging.info('Initialization')
         for step in range(num_steps):

@@ -21,7 +21,7 @@ DATASETS = [
 KB_IN_MB = 1024**2
 MAGIC_NUMBERS = {'label': 2049, 'data': 2051}
 
-PATH_TO_STORE_FILES = 'data'
+PATH_TO_STORE_FILES = '/Users/i.stepnov/Documents/learning/deep_learning/mnisT/data'
 PICKLE_FILE = 'data_set.pkl'
 
 IMAGE_XSIZE = 28
