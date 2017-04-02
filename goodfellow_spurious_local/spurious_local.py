@@ -13,20 +13,22 @@ logging.basicConfig(level=logging.INFO, format=LOGGING_FORMAT)
 
 
 def layer(x, w_shape, bias_shape):
-    w = tf.get_variable('w', w_shape, initializer= tf.truncated_normal_initializer(),
-                    dtype='float32')
-    b = tf.get_variable('b', bias_shape, initializer=tf.truncated_normal_initializer(),
-                    dtype='float32')
-    return tf.nn.relu(tf.matmul(x, w) + b)
+    weight_init = tf.random_normal_initializer(stddev=(1.0 / w_shape[0]) ** 0.5)
+    bias_init = tf.constant_initializer(value=0)
+    w = tf.get_variable('w', w_shape, initializer=weight_init, dtype='float32')
+    b = tf.get_variable('b', bias_shape, initializer=bias_init, dtype='float32')
+    return tf.matmul(x, w) + b
 
 
 def inference(x):
     with tf.variable_scope('hidden_1'):
-        output = layer(x, [784, 256], [256])
+        output = tf.nn.relu(layer(x, [784, 256], [256]))
     with tf.variable_scope('hidden_2'):
-        output_second = layer(output, [256, 256], [256])
+        output_second = tf.nn.relu(layer(output, [256, 256], [256]))
+    with tf.variable_scope('hidden_3'):
+        output_third = tf.nn.relu(layer(output_second, [256, 256], [256]))
     with tf.variable_scope('output'):
-        res = layer(output_second, [256, 10], [10])
+        res = layer(output_third, [256, 10], [10])
     return res
 
 
@@ -38,7 +40,7 @@ def loss(y, logit):
 
 def training(loss, global_step):
     tf.summary.scalar('loss', loss)
-    optimizer = tf.train.GradientDescentOptimizer(0.001)
+    optimizer = tf.train.AdamOptimizer(0.003)
     train_op = optimizer.minimize(loss, global_step=global_step)
     return train_op
 
@@ -46,11 +48,18 @@ def training(loss, global_step):
 def evaluate(label, y):
     res = tf.equal(tf.argmax(label, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(res, tf.float32))
-    tf.summary.scalar('validation error', (1.0 - accuracy))
+    tf.summary.scalar('validation_error', (1.0 - accuracy))
     return accuracy
 
 
-def prepare_opt_weights(feed_dict_in):
+def chunks(data, label, idx, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(data), n):
+        shuffled_index = idx[i:i + n]
+        yield data[shuffled_index], label[shuffled_index]
+
+
+def prepare_opt_weights():
     with tf.variable_scope('preparing_variables') as scope:
         global_step = tf.Variable(0, name='global_step', trainable=False)
         inference_op = inference(x)
@@ -62,22 +71,39 @@ def prepare_opt_weights(feed_dict_in):
         summary_op = tf.summary.merge_all()
         saver = tf.train.Saver()
         summary_writer = tf.summary.FileWriter('logs/', graph=sess.graph)
-        if not os.path.exists('logs/goodfellow-100.meta'):
-            for epoch in range(100):
-                random_indx = np.random.randint(1, train_labels.shape[0], size=120)
-                batch_data = train_data[random_indx]
-                batch_labels = train_labels[random_indx]
-                feed_dict = {x: batch_data, y: batch_labels}
-                c, t = sess.run([cost, training_op], feed_dict=feed_dict)
-                saver.save(sess, 'logs/goodfellow', global_step=global_step)
-                e = sess.run(evaluate_op, feed_dict=feed_dict)
-                s = sess.run(summary_op, feed_dict=feed_dict)
-                summary_writer.add_summary(s, epoch)
+        if not os.path.exists('logs/goodfellow-3838.meta'):
+            idx = np.arange(len(train_labels))
+            np.random.shuffle(idx)
+
+            for epoch in range(20):
+                for train_data_chunk, train_label_chunk in chunks(train_data, train_labels, idx, 180):
+                    # random_indx = np.random.randint(1, train_labels.shape[0], size=100)
+                    # feed_dict = {x: train_data[random_indx], y: train_labels[random_indx]}
+                    feed_dict = {x: train_data_chunk, y: train_label_chunk}
+                    c, t = sess.run([cost, training_op], feed_dict=feed_dict)
+                if epoch % 2 == 0:
+
+                    e_training = sess.run(evaluate_op, feed_dict=feed_dict)
+
+                    e_validation = sess.run(evaluate_op, feed_dict={
+                        x: validation_data, y: validation_labels})
+
+                    c, s = sess.run([cost, summary_op], feed_dict=feed_dict)
+                    saver.save(sess, 'logs/goodfellow', global_step=global_step)
+                    logging.info(
+                        'Cost : %s Training accuracy: %s Validation accuracy: %s' % (
+                            c, 100*e_training, 100*e_validation)
+                    )
+                    summary_writer.add_summary(s, epoch)
+            e_test = sess.run(evaluate_op, feed_dict={x: test_dataset.data, y: test_labels})
+            # 96.6700017452
+            logging.info('Testing accuracy: %s' % (100 * e_test))
+
         scope.reuse_variables()
         var_list_opt = ["hidden_1/w", "hidden_1/b", "hidden_2/w", "hidden_2/b", "output/w",
                         "output/b"]
         var_list_opt = [tf.get_variable(v) for v in var_list_opt]
-        saver.restore(sess, 'logs/goodfellow-100')
+        saver.restore(sess, 'logs/goodfellow-3838')
     return var_list_opt
 
 
@@ -92,11 +118,14 @@ if __name__ == '__main__':
 
     validation_labels = validation_labels.astype(np.float32)
     validation_data = validation_dataset.data.astype(np.float32)
+
+    test_labels = convert_from_one_dim_labels(test_dataset.label, NUM_LABELS)
+
     sess = tf.Session()
     x = tf.placeholder(shape=[None, 784], dtype='float32')
     y = tf.placeholder(shape=[None, 10], dtype='float32')
     feed_dict = {x: train_data, y: train_labels}
-    var_list_opt = prepare_opt_weights(feed_dict)
+    var_list_opt = prepare_opt_weights()
 
     with tf.variable_scope('mlp_init') as scope:
         output_rand = inference(x)
@@ -123,7 +152,7 @@ if __name__ == '__main__':
         o_inter = tf.nn.relu(tf.matmul(h2_inter, o_W_inter) + o_b_inter)
 
         cost_inter = loss(o_inter, y)
-        tf.scalar_summary("interpolated_cost", cost_inter)
+        tf.summary.scalar("interpolated_cost", cost_inter)
 
     summary_writer = tf.summary.FileWriter("linear_interp_logs/", graph=sess.graph)
     summary_op = tf.summary.merge_all()

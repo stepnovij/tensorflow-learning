@@ -107,10 +107,12 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
     eval_op = evaluate(logits, tf_train_labels)
 
     # Predictions:
-    test_prediction = inference(tf_test_data)
+    # test_prediction = inference(tf_test_data)
 
     summary_op = tf.merge_all_summaries()
     saver = tf.train.Saver()
+
+    test_dict = {tf_train_data: test_dataset.data, tf_train_labels: test_labels}
 
     with tf.Session() as session:
         summary_writer = tf.train.SummaryWriter('logs/', graph_def=session.graph_def)
@@ -124,21 +126,20 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
 
             feed_dict = {tf_train_data: batch_data, tf_train_labels: batch_labels}
             _, loss_value = session.run([training_op, loss], feed_dict=feed_dict)
-
             if step % 500 == 0:
 
-                logging.info('Loss at step %d: %f' % (step, loss_value))
                 val_feed_dict = {
                     tf_train_data: validation_dataset.data,
                     tf_train_labels: valid_labels
                 }
                 simple_accuracy = session.run(eval_op, feed_dict=val_feed_dict)
+                logging.info('Loss at step %d: %f, accuracy: %f' % (step, loss_value, simple_accuracy))
 
                 summary_str = session.run(summary_op, feed_dict=feed_dict)
                 summary_writer.add_summary(summary_str, step)
                 saver.save(session, 'logs/model-checkpoint', global_step=step)
-
-        logging.info('Test accuracy: %.1f%%' % accuracy(test_prediction.eval(), test_labels))
+        simple_accuracy = session.run(eval_op, feed_dict=test_dict)
+        logging.info('Test accuracy: %.1f%%' % float(100*simple_accuracy))
 
 
 if __name__ == '__main__':
