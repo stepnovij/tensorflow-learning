@@ -49,7 +49,11 @@ def loss_func(logits, probabilities):
     # sparse_softmax_cross_entropy_with_logits - used when you have labels
     # softmax_cross_entropy_with_logits - used when you have probabilities
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=probabilities, logits=logits)
-    return tf.reduce_mean(cross_entropy)
+    regularizers = (tf.nn.l2_loss(weights['h1']) +
+                    tf.nn.l2_loss(weights['out']) +
+                    tf.nn.l2_loss(biases['b1']) +
+                    tf.nn.l2_loss(biases['out']))
+    return tf.reduce_mean(cross_entropy) + 0.0001*regularizers
 
 
 def training(loss, learning_rate):
@@ -102,7 +106,7 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
 
     # Get loss:
     loss = loss_func(logits, tf_train_labels)
-
+    # loss += 0.01*regularizers
     training_op = training(loss, learning_rate)
     eval_op = evaluate(logits, tf_train_labels)
 
@@ -143,7 +147,7 @@ def one_layer_relu(learning_rate, num_steps, train_subset):
 
 
 if __name__ == '__main__':
-    train_subset = 200
+    train_subset = 150
     learning_rate = 0.001
     num_steps = 3001
     logging.info('starting logistic_regression_different_batches')

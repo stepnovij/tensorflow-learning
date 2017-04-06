@@ -48,7 +48,8 @@ def logistic_regression_different_batches(learning_rate, num_steps, train_subset
 
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                       labels=tf_train_labels))
-
+        regularizers = 0.00001*(tf.nn.l2_loss(weights) + tf.nn.l2_loss(biases))
+        loss += regularizers
         optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
         train_prediction = tf.nn.softmax(logits)
         valid_prediction = tf.nn.softmax(tf.matmul(tf_valid_data, weights) + biases)
