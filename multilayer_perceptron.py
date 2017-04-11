@@ -1,4 +1,3 @@
-import os
 import logging
 
 import numpy as np
@@ -22,13 +21,11 @@ def layer(x, w_shape, bias_shape):
 def inference(x, keep_prob):
     with tf.variable_scope('hidden_1'):
         output = tf.nn.relu(layer(x, [784, 256], [256]))
-        output_dropout = tf.nn.dropout(output, keep_prob)
     with tf.variable_scope('hidden_2'):
-        output_second = tf.nn.relu(layer(output_dropout, [256, 256], [256]))
+        output_second = tf.nn.relu(layer(output, [256, 256], [256]))
         output_second = tf.nn.dropout(output_second, keep_prob)
     with tf.variable_scope('hidden_3'):
         output_third = tf.nn.relu(layer(output_second, [256, 256], [256]))
-        output_third = tf.nn.dropout(output_third, keep_prob)
     with tf.variable_scope('output'):
         res = layer(output_third, [256, 10], [10])
     return res
@@ -97,17 +94,17 @@ if __name__ == '__main__':
     idx = np.arange(len(train_labels))
     np.random.shuffle(idx)
     for epoch in range(25):
-        for train_data_chunk, train_label_chunk in chunks(train_data, train_labels, idx, 200):
+        for train_data_chunk, train_label_chunk in chunks(train_data, train_labels, idx, 20):
             # random_indx = np.random.randint(1, train_labels.shape[0], size=100)
             # feed_dict = {x: train_data[random_indx], y: train_labels[random_indx]}
-            feed_dict = {x: train_data_chunk, y: train_label_chunk, keep_prob: 0.8}
+            feed_dict = {x: train_data_chunk, y: train_label_chunk, keep_prob: 1}
             c, t = sess.run([cost, training_op], feed_dict=feed_dict)
         if epoch % 2 == 0:
 
             e_training = sess.run(evaluate_op, feed_dict=feed_dict)
 
             e_validation = sess.run(evaluate_op, feed_dict={
-                x: validation_data, y: validation_labels, keep_prob: 0.8})
+                x: validation_data, y: validation_labels, keep_prob: 1})
 
             c, s = sess.run([cost, summary_op], feed_dict=feed_dict)
             saver.save(sess, 'logs/goodfellow', global_step=global_step)

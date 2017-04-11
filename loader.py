@@ -115,7 +115,8 @@ def load_dataset():
 def get_data_in_proportion(data, labels, idx):
     return labels[idx], data[idx]
 
-def split_train_ds(data, labels, split_proportion):
+
+def split_train_ds(data, labels, split_proportion, reshape):
     size = labels.shape
     train_idx = np.random.choice([True, False], size=(size[0],), p=[split_proportion,
                                                                 1 - split_proportion])
@@ -128,9 +129,8 @@ def split_train_ds(data, labels, split_proportion):
 
     train_dataset = DataLabel(label=train_label, data=train_data)
     validation_dataset = DataLabel(label=validation_label, data=validation_data)
-
-    train_dataset.data.shape = (-1, IMAGE_XSIZE*IMAGE_YSIZE)
-    validation_dataset.data.shape = (-1, IMAGE_XSIZE*IMAGE_YSIZE)
+    train_dataset.data.shape = reshape
+    validation_dataset.data.shape = reshape
 
     return train_dataset, validation_dataset
 
@@ -145,14 +145,15 @@ def get_data_and_label(data_dict, label_prefix, data_prefix):
     return data, label
 
 
-def load_test_train_validation_ds(split_proportion=0.6):
+def load_test_train_validation_ds(split_proportion=0.6, reshape=(-1, IMAGE_XSIZE*IMAGE_YSIZE)):
     dataset = load_dataset()
 
     train_data, train_label = get_data_and_label(dataset, TRAIN_LABEL_PREFIX, TRAIN_DATA_PREFIX)
-    train_dataset, validation_dataset = split_train_ds(train_data, train_label, split_proportion)
+    train_dataset, validation_dataset = split_train_ds(train_data, train_label, split_proportion,
+                                                       reshape)
 
     test_data, test_label = get_data_and_label(dataset, TEST_LABEL_PREFIX, TEST_DATA_PREFIX)
-    test_data.shape = (-1, IMAGE_XSIZE*IMAGE_YSIZE)
+    test_data.shape = reshape
     test_dataset = DataLabel(label=test_label, data=test_data)
 
     return test_dataset, train_dataset, validation_dataset
