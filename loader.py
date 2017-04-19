@@ -34,7 +34,7 @@ TEST_LABEL_PREFIX = 't10k-labels'
 TEST_DATA_PREFIX = 't10k-images'
 NUM_LABELS = 10
 
-DataLabel = namedtuple('DataLabel', ['label', 'data'], verbose=True)
+DataLabel = namedtuple('DataLabel', ['label', 'data'])
 
 
 logging.basicConfig(level=logging.INFO, format=LOGGING_FORMAT)
