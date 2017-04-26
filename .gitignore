@@ -6,3 +6,4 @@ env/*
 *.zip
 .ipynb_checkpoints/*
 *.ipynb
+*.txt

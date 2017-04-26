@@ -13,5 +13,6 @@ Simple educational repo to evaluate tensorflow library.
   * lenet-5 (best score on test data: 98%) 
 * Large Text Compression Benchmark
   * skip-gram model
+  * cbow
 
 Implementing parts of official [tensowflow's examples](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/mnist/mnist_with_summaries.py)

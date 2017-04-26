@@ -37,6 +37,7 @@ print('Data size %d' % len(words))
 
 vocabulary_size = 50000
 
+
 def build_dataset(words):
     count = [['UNK', -1]]
     count.extend(collections.Counter(words).most_common(vocabulary_size - 1))
@@ -69,8 +70,8 @@ def generate_batch(batch_size=8, num_skips=2, skip_window=1):
     global data_index
     assert batch_size % num_skips == 0
     assert num_skips <= 2 * skip_window
-    batch = np.ndarray(shape=(batch_size), dtype=np.int32)
-    labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
+    batch = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
+    labels = np.ndarray(shape=(batch_size), dtype=np.int32)
     span = 2 * skip_window + 1 # [ skip_window target skip_window ]
     buffer = collections.deque(maxlen=span)
     for _ in range(span):
@@ -84,11 +85,11 @@ def generate_batch(batch_size=8, num_skips=2, skip_window=1):
             while target in targets_to_avoid:
                 target = random.randint(0, span - 1)
             targets_to_avoid.append(target)
-            batch[i * num_skips + j] = buffer[skip_window]
-            labels[i * num_skips + j, 0] = buffer[target]
+            batch[i * num_skips + j, 0] = buffer[skip_window]
+            labels[i * num_skips + j] = buffer[target]
         buffer.append(data[data_index])
         data_index = (data_index + 1) % len(data)
-    return batch, labels
+    return labels, batch
 
 
 batch_size = 128
